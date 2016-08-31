@@ -5,7 +5,7 @@
 
 [![Clippy Linting Result](https://clippy.bashy.io/github/lemonrock/mbedtls/master/badge.svg?style=plastic)](https://clippy.bashy.io/github/lemonrock/mbedtls/master/log) [![](https://img.shields.io/badge/Code%20Style-rustfmt-brightgreen.svg?style=plastic)](https://github.com/rust-lang-nursery/rustfmt#configuring-rustfmt)
 
-[mbedtls] is a rust crate.
+[mbedtls] is a mid-level Rust wrapper for mbedtls, using the low-level Rust FFI bindings in mbedtls-sys
 
 
 ## Licensing
