@@ -2,11 +2,13 @@
 // Copyright © 2016 The developers of mbedtls. See the COPYRIGHT file in the top-level directory of this distribution and at https://raw.githubusercontent.com/lemonrock/mbedtls/master/COPYRIGHT.
 
 
-use std::slice::from_raw_parts;
-use std::mem::transmute;
-use std::ffi::CStr;
+use ::std::slice::from_raw_parts;
+use ::std::mem::transmute;
+use ::std::ffi::CStr;
 use ::std::ffi::CString;
-use std::str::FromStr;
+use ::std::str::FromStr;
+use ::std::fmt::Display;
+use ::std::fmt::Formatter;
 extern crate libc;
 use self::libc::c_int;
 extern crate num;
@@ -186,6 +188,14 @@ enum_from_primitive!
 	}
 }
 
+impl Display for CipherSuite
+{
+    fn fmt(&self, f: &mut Formatter) -> ::std::fmt::Result
+	{
+        write!(f, "{}", self.name().to_string_lossy())
+    }
+}
+
 // TODO: Consider quick-error (https://github.com/tailhook/quick-error)
 impl FromStr for CipherSuite
 {
@@ -277,6 +287,16 @@ mod tests
 	use super::*;
 	use ::std::ffi::CStr;
 	use ::std::ffi::CString;
+	
+	#[test]
+	fn fmt()
+	{
+		const expected: CipherSuite = CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384;
+		let name = expected.name();
+		let expectedDisplay = name.to_string_lossy();
+		let actual = format!("{}", expected);
+		assert_eq!(expectedDisplay, actual);
+	}
 	
 	#[test]
 	fn from_str()
