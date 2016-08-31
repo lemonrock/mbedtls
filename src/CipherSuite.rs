@@ -5,6 +5,8 @@
 use std::slice::from_raw_parts;
 use std::mem::transmute;
 use std::ffi::CStr;
+use ::std::ffi::CString;
+use std::str::FromStr;
 extern crate libc;
 use self::libc::c_int;
 extern crate num;
@@ -184,6 +186,47 @@ enum_from_primitive!
 	}
 }
 
+// TODO: Consider quick-error (https://github.com/tailhook/quick-error)
+impl FromStr for CipherSuite
+{
+	type Err = CipherSuiteParseError;
+	
+	fn from_str(s: &str) -> Result<Self, Self::Err>
+	{
+		match CString::new(s)
+		{
+			Err(_) => Err(CipherSuiteParseError::ContainsNul(s.to_owned())),
+			Ok(cipherSuiteName) =>
+			{
+				match Self::from(&cipherSuiteName)
+				{
+					Some(cipherSuite) => Ok(cipherSuite),
+					None => Err(CipherSuiteParseError::Unknown(s.to_owned())),
+				}
+			},
+		}
+	}
+}
+
+quick_error!
+{
+	#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub enum CipherSuiteParseError
+	{
+		ContainsNul(cipherSuiteName: String)
+		{
+			description("Cipher Suite name contains NUL")
+			display("Cipher Suite name '{}' contains NUL", cipherSuiteName)
+		}
+		
+		Unknown(cipherSuiteName: String)
+		{
+			description("Cipher Suite name is unknown")
+			display("Cipher Suite name '{}' is unknown", cipherSuiteName)
+		}
+	}
+}
+
 impl CipherSuite
 {
 	const NoCipherSuiteId: c_int = 0;
@@ -236,25 +279,45 @@ mod tests
 	use ::std::ffi::CString;
 	
 	#[test]
+	fn from_str()
+	{
+		const invalid: &'static str = "\0";
+		let expectedError = CipherSuiteParseError::ContainsNul(invalid.to_owned());
+		let actual: Result<CipherSuite, CipherSuiteParseError> = invalid.parse();
+		assert_eq!(expectedError, actual.err().unwrap());
+		
+		const knownIncorrectName: &'static str = "Known Incorrect Name";
+		let expectedError = CipherSuiteParseError::Unknown(knownIncorrectName.to_owned());
+		let actual: Result<CipherSuite, CipherSuiteParseError> = knownIncorrectName.parse();
+		assert_eq!(expectedError, actual.err().unwrap());
+		
+		const expectedOk: CipherSuite = CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384;
+		let knownGoodName = expectedOk.name().to_str().unwrap();
+		let actual = knownGoodName.parse().unwrap();
+		assert_eq!(expectedOk, actual);
+	}
+	
+	#[test]
 	fn ciphersuites()
 	{
 		let suites = CipherSuite::allSupportedCipherSuites();
-		assert!(suites.len() > 0, "No CipherSuites");
+		assert!(suites.len() > 0);
 	}
 	
 	#[test]
 	fn from()
 	{
-		let expected = CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384;
+		const expected: CipherSuite = CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384;
 		let name = expected.name();
-		assert!(expected == CipherSuite::from(name).unwrap(), "Dog fooding from() did not work");
+		let actual = CipherSuite::from(name).unwrap();
+		assert_eq!(expected, actual);
 	}
 	
 	#[test]
 	fn name()
 	{
-		let name = CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384.name();
 		let expected: &CStr = &CString::new("TLS-ECDHE-ECDSA-WITH-AES-256-GCM-SHA384").unwrap();
-		assert!(name == expected, "Was '{}'", name.to_string_lossy());
+		let actual = CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384.name();
+		assert_eq!(expected, actual);
 	}
 }

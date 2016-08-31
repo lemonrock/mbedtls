@@ -4,6 +4,7 @@
 
 #![feature(associated_consts)]
 #[macro_use] extern crate enum_primitive;
+#[macro_use] extern crate quick_error;
 
 
 #[path="CipherSuite.rs"] mod _CipherSuite;
