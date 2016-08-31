@@ -26,7 +26,12 @@ debug-assertions = false
 codegen-units = 1
 
 [dependencies]
-mbedtls-sys = "*"
+mbedtls-sys = "^0.0"
+enum_primitive = "^0.1"
+
+[dependencies.num]
+version = "^0.1"
+default-features = false
 
 [dependencies.libc]
 version = "^0.2"
