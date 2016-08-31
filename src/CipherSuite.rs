@@ -14,6 +14,7 @@ use self::libc::c_int;
 extern crate num;
 use self::num::FromPrimitive;
 extern crate mbedtls_sys;
+use ::CipherSuiteParseError;
 
 
 enum_from_primitive!
@@ -218,25 +219,6 @@ impl FromStr for CipherSuite
 	}
 }
 
-quick_error!
-{
-	#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-	pub enum CipherSuiteParseError
-	{
-		ContainsNul(cipherSuiteName: String)
-		{
-			description("Cipher Suite name contains NUL")
-			display("Cipher Suite name '{}' contains NUL", cipherSuiteName)
-		}
-		
-		Unknown(cipherSuiteName: String)
-		{
-			description("Cipher Suite name is unknown")
-			display("Cipher Suite name '{}' is unknown", cipherSuiteName)
-		}
-	}
-}
-
 impl CipherSuite
 {
 	const NoCipherSuiteId: c_int = 0;
@@ -287,6 +269,7 @@ mod tests
 	use super::*;
 	use ::std::ffi::CStr;
 	use ::std::ffi::CString;
+	use ::CipherSuiteParseError;
 	
 	#[test]
 	fn fmt()

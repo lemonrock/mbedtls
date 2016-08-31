@@ -2,13 +2,21 @@
 // Copyright © 2016 The developers of mbedtls. See the COPYRIGHT file in the top-level directory of this distribution and at https://raw.githubusercontent.com/lemonrock/mbedtls/master/COPYRIGHT.
 
 
-#![feature(associated_consts)]
-#[macro_use] extern crate enum_primitive;
-#[macro_use] extern crate quick_error;
-
-
-// Can be simplified to, say, embed!(CipherSuite) by using a compiler plugin; look at https://github.com/SkylerLipthay/interpolate_idents for an example
-#[path="CipherSuite.rs"] mod _CipherSuite; pub use _CipherSuite::*;
-#[path="CipherSuiteParseError.rs"] mod _CipherSuiteParseError; pub use _CipherSuiteParseError::*;
-#[path="SslConfig.rs"] mod _SslConfig; pub use _SslConfig::*;
-#[path="SslContext.rs"] mod _SslContext; pub use _SslContext::*;
+quick_error!
+{
+	#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+	pub enum CipherSuiteParseError
+	{
+		ContainsNul(cipherSuiteName: String)
+		{
+			description("Cipher Suite name contains NUL")
+			display("Cipher Suite name '{}' contains NUL", cipherSuiteName)
+		}
+		
+		Unknown(cipherSuiteName: String)
+		{
+			description("Cipher Suite name is unknown")
+			display("Cipher Suite name '{}' is unknown", cipherSuiteName)
+		}
+	}
+}
