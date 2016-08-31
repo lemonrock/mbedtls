@@ -15,7 +15,7 @@ extern crate mbedtls_sys;
 enum_from_primitive!
 {
 	#[allow(non_camel_case_types)]
-	#[derive(Clone, Copy, Debug)]
+	#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 	#[repr(i32)]
 	pub enum CipherSuite
 	{
@@ -207,7 +207,7 @@ impl CipherSuite
 		}
 	}
 	
-	pub fn from(name: &CStr) -> Option<CipherSuite>
+	pub fn from(name: &CStr) -> Option<Self>
 	{
 		match unsafe { mbedtls_sys::mbedtls_ssl_get_ciphersuite_id(name.as_ptr()) }
 		{
@@ -240,6 +240,14 @@ mod tests
 	{
 		let suites = CipherSuite::allSupportedCipherSuites();
 		assert!(suites.len() > 0, "No CipherSuites");
+	}
+	
+	#[test]
+	fn from()
+	{
+		let expected = CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384;
+		let name = expected.name();
+		assert!(expected == CipherSuite::from(name).unwrap(), "Dog fooding from() did not work");
 	}
 	
 	#[test]
