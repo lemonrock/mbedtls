@@ -14,7 +14,9 @@ use self::mbedtls_sys::mbedtls_ssl_context;
 use self::mbedtls_sys::MBEDTLS_ERR_SSL_ALLOC_FAILED;
 use self::mbedtls_sys::MBEDTLS_ERR_SSL_HW_ACCEL_FAILED;
 use self::mbedtls_sys::MBEDTLS_ERR_SSL_COMPRESSION_FAILED;
+use self::mbedtls_sys::MBEDTLS_ERR_SSL_BAD_INPUT_DATA;
 use ::SslConfig;
+use ::SslSession;
 
 
 #[derive(Clone, Debug)]
@@ -38,7 +40,7 @@ impl<'a> SslContext<'a>
 	// TODO: If we panic after mbedtls_ssl_setup but before returning, we need to free 'value' to prevent a memory leak
 	// , bioContext: *mut c_void, sendCallback: mbedtls_ssl_send_t, receiveCallback: mbedtls_ssl_recv_t
 	#[inline(always)]
-	pub fn new(sslConfig: &'a SslConfig) -> Option<SslContext<'a>>
+	pub fn new(sslConfig: &'a SslConfig) -> Option<SslContext>
 	{
 		//const readWithTimeoutCallback: mbedtls_ssl_recv_timeout_t = None;
 		
@@ -71,6 +73,19 @@ impl<'a> SslContext<'a>
 			MBEDTLS_ERR_SSL_ALLOC_FAILED => None,
 			MBEDTLS_ERR_SSL_HW_ACCEL_FAILED => panic!("mbedtls_ssl_session_reset() failed due to hardware acceleration failure"),
 			MBEDTLS_ERR_SSL_COMPRESSION_FAILED => panic!("mbedtls_ssl_session_reset() failed due to compression failure"),
+			undocumented @ _ => panic!("Received undocumented error code '{}' from mbedtls_ssl_session_reset()", undocumented),
+		}
+	}
+	
+	// Takes a copy of session data so no need to worry about lifetimes
+	#[inline(always)]
+	pub fn clientResumeSession(&mut self, sslSession: &SslSession) -> Option<()>
+	{
+		match unsafe { mbedtls_sys::mbedtls_ssl_set_session(&mut self.0, &sslSession.0) }
+		{
+			Self::NoError => Some(()),
+			MBEDTLS_ERR_SSL_ALLOC_FAILED => None,
+			MBEDTLS_ERR_SSL_BAD_INPUT_DATA => panic!("mbedtls_ssl_session_reset() failed because SslSession context data was invalid"),
 			undocumented @ _ => panic!("Received undocumented error code '{}' from mbedtls_ssl_session_reset()", undocumented),
 		}
 	}

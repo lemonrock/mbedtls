@@ -7,14 +7,16 @@
 #![feature(plugin)]
 #![plugin(num_macros)]
 
-#[macro_use] extern crate quick_error;
+#[allow(unused_extern_crates)] #[macro_use] extern crate quick_error;
+#[allow(unused_extern_crates)] #[macro_use] extern crate lazy_static;
 extern crate num;
 
+#[path="SslConfig.rs"] mod _SslConfig; pub use _SslConfig::*;
+#[path="SslContext.rs"] mod _SslContext; pub use _SslContext::*;
+#[path="SslSession.rs"] mod _SslSession; pub use _SslSession::*;
 #[path="CipherSuite.rs"] mod _CipherSuite; pub use _CipherSuite::*;
 #[path="CipherSuiteParseError.rs"] mod _CipherSuiteParseError; pub use _CipherSuiteParseError::*;
-#[path="SslConfig.rs"] mod _SslConfig; pub use _SslConfig::*;
 #[path="Endpoint.rs"] mod _Endpoint; pub use _Endpoint::*;
 #[path="Transport.rs"] mod _Transport; pub use _Transport::*;
 #[path="Verify.rs"] mod _Verify; pub use _Verify::*;
-#[path="SslContext.rs"] mod _SslContext; pub use _SslContext::*;
 #[path="DtlsAntiReplayMode.rs"] mod _DtlsAntiReplayMode; pub use _DtlsAntiReplayMode::*;

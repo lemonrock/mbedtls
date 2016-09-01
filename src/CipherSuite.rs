@@ -4,6 +4,7 @@
 
 use ::std::slice::from_raw_parts;
 use ::std::mem::transmute;
+use ::std::mem::forget;
 use ::std::ffi::CStr;
 use ::std::ffi::CString;
 use ::std::str::FromStr;
@@ -14,8 +15,15 @@ use self::libc::c_int;
 extern crate num;
 use self::num::FromPrimitive;
 extern crate mbedtls_sys;
+use self::mbedtls_sys::mbedtls_ssl_list_ciphersuites;
 use ::CipherSuiteParseError;
 
+lazy_static!
+{
+	#[derive(Debug)] static ref MaximumNumberOfCipherSuites: usize = CipherSuite::nulTerminatedCipherSuiteListSize(unsafe { mbedtls_ssl_list_ciphersuites() });
+	#[derive(Debug)] pub static ref MaximumSizeOfNulTerminatedCipherSuiteList: usize = *MaximumNumberOfCipherSuites + 1;
+	#[derive(Debug)] pub static ref AllSupportedCipherSuites: &'static [CipherSuite] = CipherSuite::allSupportedCipherSuites();
+}
 
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, NumFromPrimitive)]
@@ -219,23 +227,33 @@ impl CipherSuite
 {
 	const NoCipherSuiteId: c_int = 0;
 
-	pub fn allSupportedCipherSuites() -> &'static [Self]
+	#[inline]
+	fn nulTerminatedCipherSuiteListSize(list: *const c_int) -> usize
 	{
 		const increment: usize = 1;
-		unsafe
+	
+		let mut element = list;
+		let mut listSize = 0;
+		while unsafe { *element != Self::NoCipherSuiteId }
 		{
-			let list: *const c_int = mbedtls_sys::mbedtls_ssl_list_ciphersuites();
-			
-			let mut element = list;
-			let mut listSize = 0;
-			while *element != Self::NoCipherSuiteId
-			{
-				listSize = listSize + increment;
-				element = element.offset(increment as isize);
-			}
-			
-			from_raw_parts(transmute::<_, *const Self>(list), listSize)
+			listSize = listSize + increment;
+			element = unsafe { element.offset(increment as isize) };
 		}
+		listSize
+	}
+
+	fn allSupportedCipherSuites() -> &'static [Self]
+	{
+		let list: *const c_int = unsafe { mbedtls_ssl_list_ciphersuites() };
+		let listSize = Self::nulTerminatedCipherSuiteListSize(list);
+				
+		// FIXME: Transmute is dangerous here, if the library does not evolve in lock step
+		let slice = unsafe
+		{		
+			from_raw_parts(transmute::<_, *const Self>(list), listSize)
+		};
+		forget(slice); // from_raw_parts assumes we own the underlying pointer (list); we don't, C does, and it never wants it free'd
+		slice
 	}
 	
 	pub fn from(name: &CStr) -> Option<Self>
@@ -266,7 +284,7 @@ mod tests
 	use ::std::ffi::CStr;
 	use ::std::ffi::CString;
 	use ::CipherSuiteParseError;
-	
+		
 	#[test]
 	fn fmt()
 	{
@@ -297,7 +315,7 @@ mod tests
 	}
 	
 	#[test]
-	fn ciphersuites()
+	fn allSupportedCipherSuites()
 	{
 		let suites = CipherSuite::allSupportedCipherSuites();
 		assert!(suites.len() > 0);

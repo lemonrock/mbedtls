@@ -3,12 +3,13 @@
 
 
 extern crate mbedtls_sys;
+use self::mbedtls_sys::mbedtls_ssl_session;
 
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, NumFromPrimitive)]
-#[repr(i8)]
-pub enum DtlsAntiReplayMode
+#[allow(missing_debug_implementations)]
+#[derive(Clone, Copy)]
+pub struct SslSession(pub mbedtls_ssl_session);
+
+impl SslSession
 {
-	Enabled = mbedtls_sys::MBEDTLS_SSL_ANTI_REPLAY_ENABLED,
-	Disabled = mbedtls_sys::MBEDTLS_SSL_ANTI_REPLAY_DISABLED,
 }
