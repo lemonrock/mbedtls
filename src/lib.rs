@@ -3,12 +3,18 @@
 
 
 #![feature(associated_consts)]
-#[macro_use] extern crate enum_primitive;
+#![feature(custom_derive)]
+#![feature(plugin)]
+#![plugin(num_macros)]
+
 #[macro_use] extern crate quick_error;
+extern crate num;
 
-
-// Can be simplified to, say, embed!(CipherSuite) by using a compiler plugin; look at https://github.com/SkylerLipthay/interpolate_idents for an example
 #[path="CipherSuite.rs"] mod _CipherSuite; pub use _CipherSuite::*;
 #[path="CipherSuiteParseError.rs"] mod _CipherSuiteParseError; pub use _CipherSuiteParseError::*;
 #[path="SslConfig.rs"] mod _SslConfig; pub use _SslConfig::*;
+#[path="Endpoint.rs"] mod _Endpoint; pub use _Endpoint::*;
+#[path="Transport.rs"] mod _Transport; pub use _Transport::*;
+#[path="Verify.rs"] mod _Verify; pub use _Verify::*;
 #[path="SslContext.rs"] mod _SslContext; pub use _SslContext::*;
+#[path="DtlsAntiReplayMode.rs"] mod _DtlsAntiReplayMode; pub use _DtlsAntiReplayMode::*;

@@ -10,6 +10,10 @@ use self::libc::uint32_t;
 extern crate mbedtls_sys;
 use self::mbedtls_sys::mbedtls_ssl_config;
 use ::SslContext;
+use ::Endpoint;
+use ::Transport;
+use ::Verify;
+use ::DtlsAntiReplayMode;
 
 
 #[derive(Copy, Clone, Debug)]
@@ -39,6 +43,7 @@ impl SslConfig
 	pub fn new(endpoint: Endpoint, transport: Transport, authenticationMode: Verify) -> SslConfig
 	{
 		const NoReadTimeout: uint32_t = 0;
+		const dtlsAntiReplayMode: DtlsAntiReplayMode = DtlsAntiReplayMode::Enabled;
 		
 		let mut value = mbedtls_ssl_config::default();
 		
@@ -55,7 +60,7 @@ impl SslConfig
 			//mbedtls_sys::mbedtls_ssl_conf_session_tickets_cb(reference, ticketWriteCallback, ticketParseCallback, ticketCallbackContext);
 			//mbedtls_ssl_conf_export_keys_cb
 			//mbedtls_ssl_conf_dtls_cookies
-			
+			mbedtls_sys::mbedtls_ssl_conf_dtls_anti_replay(reference, dtlsAntiReplayMode as i8);
 		}
 		
 		SslConfig(value)
@@ -67,36 +72,4 @@ impl SslConfig
 	{
 		SslContext::new(self)
 	}
-}
-
-use self::mbedtls_sys::MBEDTLS_SSL_IS_CLIENT;
-use self::mbedtls_sys::MBEDTLS_SSL_IS_SERVER;
-#[derive(Clone, Copy, Debug)]
-#[repr(i32)]
-pub enum Endpoint
-{
-	Client = MBEDTLS_SSL_IS_CLIENT as c_int,
-	Server = MBEDTLS_SSL_IS_SERVER as c_int,
-}
-
-use self::mbedtls_sys::MBEDTLS_SSL_TRANSPORT_STREAM;
-use self::mbedtls_sys::MBEDTLS_SSL_TRANSPORT_DATAGRAM;
-#[derive(Clone, Copy, Debug)]
-#[repr(i32)]
-pub enum Transport
-{
-	Stream = MBEDTLS_SSL_TRANSPORT_STREAM as c_int,
-	Datagram = MBEDTLS_SSL_TRANSPORT_DATAGRAM as c_int,
-}
-
-use self::mbedtls_sys::MBEDTLS_SSL_VERIFY_NONE;
-use self::mbedtls_sys::MBEDTLS_SSL_VERIFY_OPTIONAL;
-use self::mbedtls_sys::MBEDTLS_SSL_VERIFY_REQUIRED;
-#[derive(Clone, Copy, Debug)]
-#[repr(i32)]
-pub enum Verify
-{
-	None = MBEDTLS_SSL_VERIFY_NONE as c_int,
-	Optional = MBEDTLS_SSL_VERIFY_OPTIONAL as c_int,
-	Required = MBEDTLS_SSL_VERIFY_REQUIRED as c_int,
 }
