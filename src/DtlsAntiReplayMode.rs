@@ -6,7 +6,7 @@ extern crate mbedtls_sys;
 
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, NumFromPrimitive)]
-#[repr(u8)]
+#[repr(i8)]
 pub enum DtlsAntiReplayMode
 {
 	Enabled = mbedtls_sys::MBEDTLS_SSL_ANTI_REPLAY_ENABLED,

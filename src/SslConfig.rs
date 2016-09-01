@@ -4,6 +4,7 @@
 
 use ::std::ops::Deref;
 use ::std::ops::DerefMut;
+use ::std::os::raw::c_char;
 use ::std::os::raw::c_int;
 extern crate libc;
 use self::libc::uint32_t;
@@ -60,7 +61,7 @@ impl SslConfig
 			//mbedtls_sys::mbedtls_ssl_conf_session_tickets_cb(reference, ticketWriteCallback, ticketParseCallback, ticketCallbackContext);
 			//mbedtls_ssl_conf_export_keys_cb
 			//mbedtls_ssl_conf_dtls_cookies
-			mbedtls_sys::mbedtls_ssl_conf_dtls_anti_replay(reference, dtlsAntiReplayMode as i8);
+			mbedtls_sys::mbedtls_ssl_conf_dtls_anti_replay(reference, dtlsAntiReplayMode as c_char);
 		}
 		
 		SslConfig(value)
