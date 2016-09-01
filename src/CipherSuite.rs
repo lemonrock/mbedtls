@@ -194,7 +194,6 @@ impl Display for CipherSuite
     }
 }
 
-// TODO: Consider quick-error (https://github.com/tailhook/quick-error)
 impl FromStr for CipherSuite
 {
 	type Err = CipherSuiteParseError;
