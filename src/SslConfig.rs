@@ -4,11 +4,16 @@
 
 use ::std::ops::Deref;
 use ::std::ops::DerefMut;
+use ::std::ops::Drop;
 use ::std::mem::transmute;
+use ::std::mem::drop;
 use ::std::ptr::copy_nonoverlapping;
+use ::std::ptr::write;
+use ::std::ptr::null_mut;
 use ::std::os::raw::c_char;
 use ::std::os::raw::c_int;
 use ::std::os::raw::c_uint;
+use ::std::ffi::CString;
 extern crate libc;
 use self::libc::uint32_t;
 extern crate mbedtls_sys;
@@ -20,12 +25,17 @@ use ::Verify;
 use ::DtlsAntiReplayMode;
 use ::CipherSuite;
 use ::MaximumSizeOfNulTerminatedCipherSuiteList;
+use ::TlsVersion;
 
 
 type NulTerminatedListOfCipherSuites = Vec<i32>;
 
+
+type NulTerminatedListOfApplicationProtocols = Vec<*mut c_char>;
+
+
 #[derive(Clone, Debug)]
-pub struct SslConfig(pub mbedtls_ssl_config, NulTerminatedListOfCipherSuites);
+pub struct SslConfig(pub mbedtls_ssl_config, NulTerminatedListOfCipherSuites, NulTerminatedListOfApplicationProtocols);
 
 impl Deref for SslConfig
 {
@@ -45,11 +55,20 @@ impl DerefMut for SslConfig
 	}
 }
 
+impl Drop for SslConfig
+{
+	fn drop(&mut self)
+	{
+		self.dropListOfApplicationProtocols();
+	}
+}
+
 impl SslConfig
 {
 	#[inline(always)]
-	pub fn new(endpoint: Endpoint, transport: Transport, authenticationMode: Verify) -> SslConfig
+	pub fn new(endpoint: Endpoint, transport: Transport, authenticationMode: Verify, cipherSuites: &[CipherSuite], applicationLayerProtocols: &[&str]) -> SslConfig
 	{
+		const LikelyNumberOfApplicationLayerProtocolsPlusOne: usize = 4;
 		const NoReadTimeout: uint32_t = 0;
 		const dtlsAntiReplayMode: DtlsAntiReplayMode = DtlsAntiReplayMode::Enabled;
 		const dtlsBadMacLimit: c_uint = 0; // 0 is no limit
@@ -77,36 +96,27 @@ impl SslConfig
 			mbedtls_sys::mbedtls_ssl_conf_dtls_badmac_limit(reference, dtlsBadMacLimit);
 			mbedtls_sys::mbedtls_ssl_conf_handshake_timeout(reference, dtlsHandshakeTimeoutMillisecondsMinimum, dtlsHandshakeTimeoutMillisecondsMaximum);
 			
-			//mbedtls_ssl_conf_session_cache
-			
-			
+			//mbedtls_ssl_conf_session_cache	
 		}
 		
-		let mut sslConfig = SslConfig(value, Vec::with_capacity(*MaximumSizeOfNulTerminatedCipherSuiteList));
-		let cipherSuites = vec![CipherSuite::TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384];
-		sslConfig.setCipherSuites(&cipherSuites);
+		let mut sslConfig = SslConfig
+		(
+			value,
+			Vec::with_capacity(*MaximumSizeOfNulTerminatedCipherSuiteList),
+			Vec::with_capacity(LikelyNumberOfApplicationLayerProtocolsPlusOne),
+		);
+		sslConfig.setCipherSuites(cipherSuites);
+		sslConfig.setApplicationLayerProtocols(applicationLayerProtocols);
 		sslConfig
 	}
 	
-	// The ciphersuites array is not copied, and must remain valid for the lifetime of the ssl_config.
-	fn setCipherSuites(&mut self, cipherSuites: &[CipherSuite])
+	pub fn setCipherSuitesForVersion(&mut self, cipherSuites: &[CipherSuite], tlsVersion: TlsVersion)
 	{
-		const EndOfList: i32 = 0;
-		
-		let length = cipherSuites.len();
-		let ref mut nulTerminatedList = self.1;
-		//nulTerminatedList.clear();  Causes all existing elements to be dropped in place; we can avoid this because we known CipherSuite is just an enum of i32
 		unsafe
 		{
-			copy_nonoverlapping(transmute::<_, *const c_int>(cipherSuites.as_ptr()), nulTerminatedList.as_mut_ptr(), length);
-			nulTerminatedList.set_len(length);
-		}
-		nulTerminatedList.push(EndOfList);
-		
-		let reference = &mut self.0;
-		unsafe
-		{
-			mbedtls_sys::mbedtls_ssl_conf_ciphersuites(reference, nulTerminatedList.as_ptr());
+			self.copyCipherSuitesIntoVecWithoutIncreasingCapacity(cipherSuites);
+			let reference = &mut self.0;
+			mbedtls_sys::mbedtls_ssl_conf_ciphersuites_for_version(reference, self.1.as_ptr(), tlsVersion.major() as c_int, tlsVersion.minor() as c_int);
 		}
 	}
 	
@@ -115,5 +125,58 @@ impl SslConfig
 	pub fn newSslContext<'a>(&'a self) -> Option<SslContext>
 	{
 		SslContext::new(self)
+	}
+	
+	// WARN: Assumes Vec has correct capacity
+	unsafe fn copyCipherSuitesIntoVecWithoutIncreasingCapacity(&mut self, cipherSuites: &[CipherSuite])
+	{
+		const EndOfList: i32 = 0;
+
+		let ref mut nulTerminatedList = self.1;
+		let length = cipherSuites.len();
+		debug_assert!(nulTerminatedList.capacity() >= length + 1, "nulTerminatedList does not have sufficient capacity; are you passing a cipherSuites bigger than the maximum?");
+
+		//nulTerminatedList.clear();  Causes all existing elements to be dropped in place; we can avoid this because we know nulTerminatedList is just i32
+		let nulTerminatedListPointer = nulTerminatedList.as_mut_ptr();
+		copy_nonoverlapping(transmute::<_, *const c_int>(cipherSuites.as_ptr()), nulTerminatedListPointer, length);
+		write(nulTerminatedListPointer.offset(length as isize), EndOfList);
+		nulTerminatedList.set_len(length + 1);
+	}
+	
+	// The ciphersuites array is not copied, and must remain valid for the lifetime of the ssl_config.
+	fn setCipherSuites(&mut self, cipherSuites: &[CipherSuite])
+	{
+		unsafe
+		{
+			self.copyCipherSuitesIntoVecWithoutIncreasingCapacity(cipherSuites);
+			let reference = &mut self.0;
+			mbedtls_sys::mbedtls_ssl_conf_ciphersuites(reference, self.1.as_ptr());
+		}
+	}
+	
+	fn setApplicationLayerProtocols(&mut self, applicationLayerProtocols: &[&str])
+	{
+		self.dropListOfApplicationProtocols();
+		
+		let ref mut nulTerminatedList = self.2;
+		let length = applicationLayerProtocols.len();
+		
+		nulTerminatedList.reserve(length + 1);
+		for applicationLayerProtocol in applicationLayerProtocols
+		{
+			// Annoyingly, this does a capacity check for every push
+			nulTerminatedList.push(CString::new(*applicationLayerProtocol).unwrap().into_raw());
+		}
+		nulTerminatedList.push(null_mut());
+	}
+	
+	fn dropListOfApplicationProtocols(&mut self)
+	{
+		let actualLength = self.2.len() - 1;
+		for index in 0..actualLength
+		{
+			unsafe { drop(CString::from_raw(self.2[index])) };
+		}
+		unsafe { self.2.set_len(0) };
 	}
 }
