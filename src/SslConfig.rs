@@ -96,7 +96,12 @@ impl SslConfig
 			mbedtls_sys::mbedtls_ssl_conf_dtls_badmac_limit(reference, dtlsBadMacLimit);
 			mbedtls_sys::mbedtls_ssl_conf_handshake_timeout(reference, dtlsHandshakeTimeoutMillisecondsMinimum, dtlsHandshakeTimeoutMillisecondsMaximum);
 			
-			//mbedtls_ssl_conf_session_cache	
+			//mbedtls_ssl_conf_session_cache
+			
+			// Deprecated: mbedtls_ssl_conf_arc4_support
+			// Deprecated: mbedtls_ssl_conf_cbc_record_splitting
+			
+			//mbedtls_sys::mbedtls_ssl_conf_ca_chain(reference, certificateAuthorityChain, certificateAuthorityReovicationList);
 		}
 		
 		let mut sslConfig = SslConfig
